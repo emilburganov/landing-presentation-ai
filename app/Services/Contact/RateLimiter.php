@@ -2,8 +2,8 @@
 
 namespace App\Services\Contact;
 
+use App\Services\Contact\Exceptions\RateLimitExceededException;
 use Illuminate\Support\Facades\Cache;
-use RuntimeException;
 
 class RateLimiter
 {
@@ -23,7 +23,10 @@ class RateLimiter
 
         // Проверка лимита
         if ($count > $max) {
-            throw new RuntimeException('Too many requests. Try again later.');
+            throw new RateLimitExceededException(
+                message: 'Too many requests. Try again later.',
+                retryAfter: $window
+            );
         }
     }
 }

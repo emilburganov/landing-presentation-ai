@@ -4,7 +4,6 @@ namespace App\Services\Contact;
 
 use App\Services\Contact\DTO\ContactDTO;
 use App\Services\Contact\DTO\ContactResultDTO;
-use Illuminate\Support\Facades\Cache;
 
 readonly class ContactService
 {
