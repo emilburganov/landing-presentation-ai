@@ -3,7 +3,8 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\ContactRequest;
+use App\Http\Requests\API\ContactRequest;
+use App\Services\AI\Exceptions\AIException;
 use App\Services\Contact\ContactService;
 use App\Services\Contact\DTO\ContactDTO;
 use App\Services\Contact\Exceptions\RateLimitExceededException;
@@ -13,7 +14,9 @@ class ContactController extends Controller
 {
     public function __construct(
         private readonly ContactService $service,
-    ) {}
+    )
+    {
+    }
 
     public function store(ContactRequest $request): JsonResponse
     {
@@ -23,16 +26,21 @@ class ContactController extends Controller
             $result = $this->service->handleContact($dto);
         } catch (RateLimitExceededException $e) {
             return response()->json([
-                'message'     => $e->getMessage(),
+                'message' => $e->getMessage(),
                 'retry_after' => $e->retryAfter,
             ], 429);
+        } catch (AIException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'raw' => $e->raw,
+            ], $e->statusCode);
         }
 
         return response()->json([
-            'message'   => $result->message,
+            'message' => $result->message,
             'sentiment' => $result->sentiment,
-            'type'      => $result->type,
-            'ai_used'   => $result->aiUsed,
+            'type' => $result->type,
+            'ai_used' => $result->aiUsed,
         ], 201);
     }
 }

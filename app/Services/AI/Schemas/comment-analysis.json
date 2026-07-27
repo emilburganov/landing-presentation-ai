@@ -1,0 +1,17 @@
+{
+    "type": "object",
+    "required": ["sentiment", "type"],
+    "properties": {
+        "sentiment": {
+            "type": "string",
+            "enum": ["positive", "neutral", "negative", "unknown"]
+        },
+        "type": {
+            "type": "string",
+            "enum": ["question", "feedback", "complaint", "general"]
+        },
+        "auto_reply": {
+            "type": ["string", "null"]
+        }
+    }
+}
