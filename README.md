@@ -145,13 +145,14 @@ CACHE_STORE=file
 QUEUE_CONNECTION=sync
 GROQ_API_KEY=...
 CONTACT_OWNER_EMAIL=you@example.com
-MAIL_MAILER=smtp
-MAIL_HOST=...
-MAIL_PORT=587
-MAIL_USERNAME=...
-MAIL_PASSWORD=...
-MAIL_FROM_ADDRESS=noreply@yourdomain.com
+MAILPIT_ENABLED=true
+MAIL_FROM_ADDRESS=noreply@localhost
+MAIL_FROM_NAME=Landing
 ```
+
+Mailpit встроен в prod-образ (аналог сервиса `mailpit` на dev): SMTP `127.0.0.1:1025`, UI на порту **8025**.  
+В Networking добавь второй домен с **Target port = `8025`**.  
+Внешний SMTP: `MAILPIT_ENABLED=false` + свои `MAIL_*`.
 
 Для PostgreSQL на Railway замените `DB_*` на значения из плагина Postgres (`pdo_pgsql` уже в образе). При отдельном Redis — `CACHE_STORE=redis` и `REDIS_HOST`.
 

@@ -36,6 +36,32 @@ if [ "$DB_CONNECTION" = "sqlite" ]; then
     export DB_DATABASE="$DB_PATH"
 fi
 
+# Embedded Mailpit (same role as the compose "mailpit" service on dev).
+# Disable with MAILPIT_ENABLED=false when using an external SMTP or compose sidecar.
+MAILPIT_ENABLED="${MAILPIT_ENABLED:-true}"
+if [ "$MAILPIT_ENABLED" = "true" ]; then
+    export MAILPIT_SMTP_PORT="${MAILPIT_SMTP_PORT:-1025}"
+    export MAILPIT_UI_PORT="${MAILPIT_UI_PORT:-8025}"
+
+    echo "Starting Mailpit (SMTP 0.0.0.0:${MAILPIT_SMTP_PORT}, UI 0.0.0.0:${MAILPIT_UI_PORT})"
+    mailpit \
+        --smtp "0.0.0.0:${MAILPIT_SMTP_PORT}" \
+        --listen "0.0.0.0:${MAILPIT_UI_PORT}" \
+        --db-file /tmp/mailpit.db \
+        >/tmp/mailpit.log 2>&1 &
+
+    # Point Laravel at local Mailpit unless a real remote SMTP host is configured
+    case "${MAIL_HOST:-}" in
+        ""|mailpit|127.0.0.1|localhost)
+            export MAIL_MAILER=smtp
+            export MAIL_HOST=127.0.0.1
+            export MAIL_PORT="${MAILPIT_SMTP_PORT}"
+            export MAIL_USERNAME="${MAIL_USERNAME:-null}"
+            export MAIL_PASSWORD="${MAIL_PASSWORD:-null}"
+            ;;
+    esac
+fi
+
 echo "Clearing Laravel caches..."
 php artisan optimize:clear || true
 php artisan package:discover --ansi || true

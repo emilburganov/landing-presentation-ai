@@ -71,7 +71,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && docker-php-ext-enable redis \
     && apt-get purge -y $PHPIZE_DEPS \
     && apt-get autoremove -y \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && arch="$(uname -m)" \
+    && case "$arch" in \
+         x86_64) mp_arch=amd64 ;; \
+         aarch64) mp_arch=arm64 ;; \
+         *) mp_arch=amd64 ;; \
+       esac \
+    && curl -fsSL "https://github.com/axllent/mailpit/releases/latest/download/mailpit-linux-${mp_arch}.tar.gz" \
+         | tar -xz -C /usr/local/bin mailpit \
+    && chmod +x /usr/local/bin/mailpit
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
@@ -88,9 +97,12 @@ RUN COMPOSER_ALLOW_SUPERUSER=1 composer dump-autoload --optimize --no-dev \
 ENV APP_ENV=production \
     APP_DEBUG=false \
     LOG_CHANNEL=stderr \
-    PORT=8080
+    PORT=8080 \
+    MAILPIT_ENABLED=true \
+    MAILPIT_SMTP_PORT=1025 \
+    MAILPIT_UI_PORT=8025
 
-EXPOSE 8080
+EXPOSE 8080 8025
 
 ENTRYPOINT ["docker/entrypoint.sh"]
 CMD ["php", "artisan", "serve"]
