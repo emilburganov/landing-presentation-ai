@@ -7,6 +7,7 @@ use App\Http\Requests\API\ContactRequest;
 use App\Services\Contact\Contracts\ContactHandlerInterface;
 use App\Services\Contact\DTO\ContactDTO;
 use App\Services\Contact\Exceptions\CommentAnalysisFailedException;
+use App\Services\Contact\Exceptions\ContactNotificationFailedException;
 use App\Services\Contact\Exceptions\RateLimitExceededException;
 use Illuminate\Http\JsonResponse;
 
@@ -34,6 +35,11 @@ class ContactController extends Controller
                 'message' => $e->getMessage(),
                 'raw' => $e->raw,
             ], $e->statusCode);
+        } catch (ContactNotificationFailedException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'raw' => $e->raw,
+            ], 502);
         }
 
         return response()->json([

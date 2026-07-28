@@ -2,21 +2,26 @@
 
 namespace App\Services\Contact;
 
+use App\Services\Contact\Analysis\CommentAnalysis;
 use App\Services\Contact\Analysis\CommentAnalyzer;
 use App\Services\Contact\Contracts\ContactHandlerInterface;
 use App\Services\Contact\Contracts\RateLimiterInterface;
 use App\Services\Contact\DTO\ContactDTO;
 use App\Services\Contact\DTO\ContactResultDTO;
 use App\Services\Contact\Exceptions\CommentAnalysisFailedException;
+use App\Services\Contact\Exceptions\ContactNotificationFailedException;
 use App\Services\Contact\Exceptions\RateLimitExceededException;
+use App\Services\Contact\Mail\ContactNotifierInterface;
 use Psr\Log\LoggerInterface;
+use Throwable;
 
 readonly class ContactService implements ContactHandlerInterface
 {
     public function __construct(
-        private RateLimiterInterface $rateLimiter,
-        private CommentAnalyzer      $commentAnalyzer,
-        private LoggerInterface      $logger,
+        private RateLimiterInterface     $rateLimiter,
+        private CommentAnalyzer          $commentAnalyzer,
+        private ContactNotifierInterface $notifier,
+        private LoggerInterface          $logger,
     )
     {
     }
@@ -24,6 +29,7 @@ readonly class ContactService implements ContactHandlerInterface
     /**
      * @throws RateLimitExceededException
      * @throws CommentAnalysisFailedException
+     * @throws ContactNotificationFailedException
      */
     public function handleContact(ContactDTO $contactDTO): ContactResultDTO
     {
@@ -36,6 +42,8 @@ readonly class ContactService implements ContactHandlerInterface
             $this->rateLimiter->assertAllowed($contactDTO->email);
 
             $analysis = $this->commentAnalyzer->analyze($contactDTO->comment);
+
+            $this->sendNotifications($contactDTO, $analysis);
 
             $result = ContactResultDTO::accepted($analysis);
 
@@ -63,6 +71,38 @@ readonly class ContactService implements ContactHandlerInterface
             ]);
 
             throw $e;
+        }
+    }
+
+    /**
+     * @throws ContactNotificationFailedException
+     */
+    private function sendNotifications(ContactDTO $contactDTO, CommentAnalysis $analysis): void
+    {
+        try {
+            $this->notifier->notify($contactDTO, $analysis);
+        } catch (ContactNotificationFailedException $e) {
+            $this->logger->error('contact.handle.mail_failed', [
+                'email' => $contactDTO->email,
+                'message' => $e->getMessage(),
+                'raw' => $e->raw,
+            ]);
+
+            throw $e;
+        } catch (Throwable $e) {
+            $this->logger->error('contact.handle.mail_failed', [
+                'email' => $contactDTO->email,
+                'message' => $e->getMessage(),
+                'exception' => $e::class,
+            ]);
+
+            throw new ContactNotificationFailedException(
+                message: 'Failed to send contact notification emails.',
+                raw: [
+                    'message' => $e->getMessage(),
+                    'exception' => $e::class,
+                ],
+            );
         }
     }
 }
