@@ -1,4 +1,5 @@
 import * as yup from 'yup';
+import { phoneLengthError } from '../utils/phone';
 
 /**
  * Клиентская схема зеркалит правила ContactRequest на бэкенде.
@@ -14,7 +15,13 @@ export const contactSchema = yup.object({
         .string()
         .trim()
         .required('Укажите телефон')
-        .matches(/^\+?[0-9\s()-]{8,20}$/, 'Введите корректный номер телефона'),
+        .test('phone-length', (value, context) => {
+            const message = phoneLengthError(value);
+            if (message) {
+                return context.createError({ message });
+            }
+            return true;
+        }),
     email: yup
         .string()
         .trim()

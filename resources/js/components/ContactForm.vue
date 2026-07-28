@@ -1,6 +1,7 @@
 <script setup>
 import { useContactForm } from '../composables/useContactForm';
 import ContactResult from './ContactResult.vue';
+import PhoneField from './ui/PhoneField.vue';
 import TextArea from './ui/TextArea.vue';
 import TextField from './ui/TextField.vue';
 
@@ -35,14 +36,11 @@ const {
                 :error="errors.name"
             />
 
-            <TextField
+            <PhoneField
                 id="contact-phone"
                 v-model="phone"
                 v-bind="phoneAttrs"
                 label="Телефон"
-                type="tel"
-                autocomplete="tel"
-                placeholder="+79991234567"
                 :error="errors.phone"
             />
         </div>
