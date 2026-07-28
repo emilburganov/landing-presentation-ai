@@ -28,7 +28,7 @@ paths:
                 value:
                   name: Ivan
                   phone: '+79991234567'
-                  email: ivan@example.com
+                  email: ivan@mail.com
                   comment: Хочу узнать подробности о вашем продукте.
       responses:
         '201':
@@ -257,7 +257,7 @@ components:
           type: string
           format: email
           maxLength: 255
-          example: ivan@example.com
+          example: ivan@mail.com
         comment:
           type: string
           minLength: 10
