@@ -8,17 +8,18 @@ use App\Services\AI\Exceptions\AIException;
 use App\Services\AI\Support\CommentAnalysisParser;
 use App\Services\AI\Support\CommentAnalysisPrompt;
 use App\Services\AI\Support\GuzzleExceptionMapper;
+use Psr\Log\LoggerInterface;
 use Throwable;
 
 readonly class GroqCommentAnalyzer implements CommentAnalyzerInterface
 {
     public function __construct(
-        private GroqApiClient         $api,
+        private GroqApiClient $api,
         private CommentAnalysisPrompt $prompt,
         private CommentAnalysisParser $parser,
         private GuzzleExceptionMapper $exceptionMapper,
-    )
-    {
+        private LoggerInterface $logger,
+    ) {
     }
 
     /**
@@ -26,17 +27,43 @@ readonly class GroqCommentAnalyzer implements CommentAnalyzerInterface
      */
     public function analyzeComment(string $comment): CommentAnalysisResultDTO
     {
+        $this->logger->info('ai.analyze.start', [
+            'comment_length' => mb_strlen($comment),
+            'provider' => 'groq',
+        ]);
+
         try {
             $response = $this->api->chat(
                 system: $this->prompt->system(),
                 user: $comment,
             );
 
-            return $this->parser->parse($response);
+            $result = $this->parser->parse($response);
+
+            $this->logger->info('ai.analyze.success', [
+                'sentiment' => $result->sentiment,
+                'type' => $result->type,
+            ]);
+
+            return $result;
         } catch (AIException $e) {
+            $this->logger->error('ai.analyze.failed', [
+                'message' => $e->getMessage(),
+                'status_code' => $e->statusCode,
+                'raw' => $e->raw,
+            ]);
+
             throw $e;
         } catch (Throwable $e) {
-            throw $this->exceptionMapper->map($e);
+            $mapped = $this->exceptionMapper->map($e);
+
+            $this->logger->error('ai.analyze.failed', [
+                'message' => $mapped->getMessage(),
+                'status_code' => $mapped->statusCode,
+                'raw' => $mapped->raw,
+            ]);
+
+            throw $mapped;
         }
     }
 }
