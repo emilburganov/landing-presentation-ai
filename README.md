@@ -34,7 +34,7 @@ npm install && npm run build
 | Swagger UI | http://localhost/docs |
 | OpenAPI spec | http://localhost/docs/openapi.yaml |
 | Mailpit (письма) | http://localhost:8025 (/mailpit вместо порта на Railway) |
-| Redis | `localhost:6379` |
+| Redis | http://localhost:6379` |
 
 Проверка:
 
