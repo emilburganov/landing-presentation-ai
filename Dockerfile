@@ -87,10 +87,10 @@ RUN COMPOSER_ALLOW_SUPERUSER=1 composer dump-autoload --optimize --no-dev \
 
 ENV APP_ENV=production \
     APP_DEBUG=false \
-    LOG_CHANNEL=stderr
+    LOG_CHANNEL=stderr \
+    PORT=8080
 
 EXPOSE 8080
 
 ENTRYPOINT ["docker/entrypoint.sh"]
-# Port is taken from $PORT at runtime (Railway injects it).
 CMD ["php", "artisan", "serve"]

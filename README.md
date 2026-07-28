@@ -158,7 +158,15 @@ MAIL_FROM_ADDRESS=noreply@yourdomain.com
 Healthcheck: `GET /up` (liveness для Railway). Детальный статус зависимостей — `GET /api/health`.
 
 В Dashboard: Build Command и Start Command должны быть **пустыми** (entrypoint сам слушает `$PORT`).
-Если healthcheck всё ещё падает — проверьте Deploy Logs: часто нет `APP_KEY` или БД недоступна на старте миграций.
+
+**502 Application failed to respond** — почти всегда порт домена ≠ порт приложения:
+
+1. **Variables** → добавь `PORT=8080`
+2. **Settings → Networking** → у публичного домена **Target port = `8080`** (не 3000/80)
+3. Redeploy
+4. В Deploy Logs должна быть строка: `Starting Laravel on 0.0.0.0:8080`
+
+Если healthcheck всё ещё падает — смотри Deploy Logs: часто нет `APP_KEY` или БД недоступна на старте миграций.
 
 ---
 
