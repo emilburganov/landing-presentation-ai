@@ -3,6 +3,8 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
+# Do NOT set a custom buildCommand / startCommand that runs `docker` —
+# Railway has no Docker CLI in the build sandbox.
 healthcheckPath = "/api/health"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"

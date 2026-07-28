@@ -118,7 +118,17 @@ docker run --rm -p 8080:8080 \
 
 ### Railway
 
-В репозитории есть `railway.toml` (`builder = DOCKERFILE`). Не используйте Nixpacks с PHP 8.3 — lock тянет Symfony 8.1 (нужен PHP ≥ 8.4.1).
+В репозитории: `railway.toml` / `railway.json` (`builder = DOCKERFILE`). Образ собирает **сам Railway** — локальный Docker и команда `docker build` в настройках сервиса **не нужны**.
+
+Если в логах: `The executable docker could not be found` — в Dashboard у сервиса:
+
+1. **Settings → Build** → Builder = **Dockerfile** (не Railpack/Nixpacks)
+2. **Build Command** — **пусто** (не `docker build ...` и не `docker compose ...`)
+3. **Start Command** — **пусто** (entrypoint из образа сам запускает `artisan serve`)
+4. Root Directory — корень репозитория (где лежит `Dockerfile`)
+5. Redeploy (лучше **Redeploy** с очисткой кэша)
+
+Не используйте Nixpacks/Railpack с PHP 8.3 — lock тянет Symfony 8.1 (нужен PHP ≥ 8.4.1).
 
 Обязательные переменные на сервисе:
 

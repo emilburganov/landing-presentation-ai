@@ -2,7 +2,7 @@ services:
     app:
         build:
             context: .
-            dockerfile: ./docker/Dockerfile
+            dockerfile: ./docker/dev.Dockerfile
         container_name: app
         restart: unless-stopped
         volumes:
