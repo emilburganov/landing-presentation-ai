@@ -1,0 +1,67 @@
+# Production-like stack (built image, no bind mounts).
+# Usage:
+#   docker compose -f docker-compose.prod.yml up --build
+#
+# Set secrets via environment or a local .env (not committed).
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: landing-presentation-ai:prod
+    container_name: landing-app-prod
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      APP_NAME: Landing Presentation AI
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      APP_KEY: ${APP_KEY:-}
+      LOG_CHANNEL: stderr
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /var/www/html/database/database.sqlite
+      SESSION_DRIVER: file
+      CACHE_STORE: redis
+      REDIS_CLIENT: phpredis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: smtp
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+      MAIL_FROM_ADDRESS: noreply@localhost
+      MAIL_FROM_NAME: Landing
+      CONTACT_OWNER_EMAIL: ${CONTACT_OWNER_EMAIL:-owner@localhost}
+      CONTACT_RATE_LIMIT_MAX: ${CONTACT_RATE_LIMIT_MAX:-5}
+      CONTACT_RATE_LIMIT_WINDOW: ${CONTACT_RATE_LIMIT_WINDOW:-600}
+      AI_PROVIDER: groq
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-llama3-8b-8192}
+      RUN_MIGRATIONS: "true"
+      CACHE_CONFIG: "true"
+      PORT: 8080
+    depends_on:
+      - redis
+      - mailpit
+    volumes:
+      - app_sqlite:/var/www/html/database
+      - app_storage:/var/www/html/storage
+
+  redis:
+    image: redis:7-alpine
+    container_name: landing-redis-prod
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: landing-mailpit-prod
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+
+volumes:
+  app_sqlite:
+  app_storage:

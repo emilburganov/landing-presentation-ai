@@ -9,7 +9,7 @@ Backend API и Vue-фронтенд формы обратной связи: ан
 ### Требования
 
 - Docker + Docker Compose
-- PHP 8.3+ и Composer (если запуск без Docker)
+- PHP 8.4+ и Composer (если запуск без Docker; lock требует PHP ≥ 8.4.1)
 - Ключ [Groq API](https://console.groq.com/)
 
 ### Быстрый старт (Docker)
@@ -77,13 +77,83 @@ REDIS_HOST=redis
 DB_CONNECTION=sqlite
 ```
 
+### Production Docker (один образ)
+
+Корневой `Dockerfile` — multi-stage: Vite build → `composer install --no-dev` на PHP 8.4 → runtime с `pdo_sqlite` / `pdo_pgsql` / `pdo_mysql` / redis. Entrypoint гоняет миграции и слушает `$PORT` (по умолчанию 8080).
+
+Локально (prod-like, без bind-mount исходников):
+
+```bash
+export APP_KEY="$(php -r "echo 'base64:'.base64_encode(random_bytes(32));")"
+export GROQ_API_KEY=your_key
+export CONTACT_OWNER_EMAIL=you@example.com
+
+docker compose -f docker-compose.prod.yml up --build
+```
+
+| Сервис | URL |
+|---|---|
+| Приложение | http://localhost:8080 |
+| Health | http://localhost:8080/api/health |
+| Mailpit UI | http://localhost:8025 |
+
+Только образ:
+
+```bash
+docker build -t landing-presentation-ai:prod .
+docker run --rm -p 8080:8080 \
+  -e APP_KEY="$APP_KEY" \
+  -e APP_ENV=production \
+  -e APP_DEBUG=false \
+  -e DB_CONNECTION=sqlite \
+  -e DB_DATABASE=/var/www/html/database/database.sqlite \
+  -e SESSION_DRIVER=file \
+  -e CACHE_STORE=file \
+  -e QUEUE_CONNECTION=sync \
+  -e MAIL_MAILER=log \
+  -e GROQ_API_KEY="$GROQ_API_KEY" \
+  -e CONTACT_OWNER_EMAIL=you@example.com \
+  landing-presentation-ai:prod
+```
+
+### Railway
+
+В репозитории есть `railway.toml` (`builder = DOCKERFILE`). Не используйте Nixpacks с PHP 8.3 — lock тянет Symfony 8.1 (нужен PHP ≥ 8.4.1).
+
+Обязательные переменные на сервисе:
+
+```env
+APP_KEY=base64:...
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://your-app.up.railway.app
+LOG_CHANNEL=stderr
+DB_CONNECTION=sqlite
+DB_DATABASE=/var/www/html/database/database.sqlite
+SESSION_DRIVER=file
+CACHE_STORE=file
+QUEUE_CONNECTION=sync
+GROQ_API_KEY=...
+CONTACT_OWNER_EMAIL=you@example.com
+MAIL_MAILER=smtp
+MAIL_HOST=...
+MAIL_PORT=587
+MAIL_USERNAME=...
+MAIL_PASSWORD=...
+MAIL_FROM_ADDRESS=noreply@yourdomain.com
+```
+
+Для PostgreSQL на Railway замените `DB_*` на значения из плагина Postgres (`pdo_pgsql` уже в образе). При отдельном Redis — `CACHE_STORE=redis` и `REDIS_HOST`.
+
+Healthcheck: `GET /api/health`.
+
 ---
 
 ## 2. Стек технологий и библиотек
 
 - **Vue 3 + Vite + Tailwind CSS 4** — фронтенд формы, сборка в Blade (`@vite`)
-- **PHP 8.3+ / Laravel 13**
-- **Docker Compose** — `app` (PHP-FPM), `nginx`, `redis`, `mailpit`
+- **PHP 8.4+ / Laravel 13**
+- **Docker** — dev: `docker-compose.yml` (PHP-FPM + nginx); prod: корневой `Dockerfile` / `docker-compose.prod.yml`
 - **SQLite** — легко заменить на MySQL/PostgreSQL
 - **Redis**
 - **Groq API** — LLM-анализ комментариев
