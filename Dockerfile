@@ -51,6 +51,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
         curl \
         unzip \
+        nginx \
         libzip-dev \
         libpng-dev \
         libonig-dev \
@@ -98,11 +99,12 @@ ENV APP_ENV=production \
     APP_DEBUG=false \
     LOG_CHANNEL=stderr \
     PORT=8080 \
+    APP_PORT=8081 \
     MAILPIT_ENABLED=true \
     MAILPIT_SMTP_PORT=1025 \
     MAILPIT_UI_PORT=8025
 
-EXPOSE 8080 8025
+EXPOSE 8080
 
 ENTRYPOINT ["docker/entrypoint.sh"]
-CMD ["php", "artisan", "serve"]
+CMD ["nginx"]

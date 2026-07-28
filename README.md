@@ -150,8 +150,9 @@ MAIL_FROM_ADDRESS=noreply@localhost
 MAIL_FROM_NAME=Landing
 ```
 
-Mailpit встроен в prod-образ (аналог сервиса `mailpit` на dev): SMTP `127.0.0.1:1025`, UI на порту **8025**.  
-В Networking добавь второй домен с **Target port = `8025`**.  
+Mailpit встроен в prod-образ: SMTP `127.0.0.1:1025`, UI на том же домене — **`/mailpit`**  
+(прокси nginx → Mailpit). Отдельный домен на 8025 не нужен.
+
 Внешний SMTP: `MAILPIT_ENABLED=false` + свои `MAIL_*`.
 
 Для PostgreSQL на Railway замените `DB_*` на значения из плагина Postgres (`pdo_pgsql` уже в образе). При отдельном Redis — `CACHE_STORE=redis` и `REDIS_HOST`.

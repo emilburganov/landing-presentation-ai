@@ -3,11 +3,14 @@ set -eu
 
 cd /var/www/html
 
-# Pin 8080 unless PORT is explicitly provided.
-# On Railway: set Variables PORT=8080 AND Networking → domain target port = 8080.
-# Mismatch between listen port and domain target port = public 502.
+# Public port (Railway injects PORT). Nginx listens here.
 export PORT="${PORT:-8080}"
 export SERVER_PORT="$PORT"
+# Laravel binds privately; nginx proxies to it.
+export APP_PORT="${APP_PORT:-8081}"
+export MAILPIT_SMTP_PORT="${MAILPIT_SMTP_PORT:-1025}"
+export MAILPIT_UI_PORT="${MAILPIT_UI_PORT:-8025}"
+export MAILPIT_ENABLED="${MAILPIT_ENABLED:-true}"
 
 # Sensible PaaS defaults when vars are omitted
 export DB_CONNECTION="${DB_CONNECTION:-sqlite}"
@@ -16,7 +19,8 @@ export SESSION_DRIVER="${SESSION_DRIVER:-file}"
 export QUEUE_CONNECTION="${QUEUE_CONNECTION:-sync}"
 export LOG_CHANNEL="${LOG_CHANNEL:-stderr}"
 
-mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache
+mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache \
+    /tmp/nginx_client_body /tmp/nginx_proxy /tmp/nginx_fastcgi /tmp/nginx_uwsgi /tmp/nginx_scgi
 chown -R www-data:www-data storage bootstrap/cache 2>/dev/null || true
 chmod -R ug+rwx storage bootstrap/cache 2>/dev/null || true
 
@@ -36,21 +40,15 @@ if [ "$DB_CONNECTION" = "sqlite" ]; then
     export DB_DATABASE="$DB_PATH"
 fi
 
-# Embedded Mailpit (same role as the compose "mailpit" service on dev).
-# Disable with MAILPIT_ENABLED=false when using an external SMTP or compose sidecar.
-MAILPIT_ENABLED="${MAILPIT_ENABLED:-true}"
 if [ "$MAILPIT_ENABLED" = "true" ]; then
-    export MAILPIT_SMTP_PORT="${MAILPIT_SMTP_PORT:-1025}"
-    export MAILPIT_UI_PORT="${MAILPIT_UI_PORT:-8025}"
-
-    echo "Starting Mailpit (SMTP 0.0.0.0:${MAILPIT_SMTP_PORT}, UI 0.0.0.0:${MAILPIT_UI_PORT})"
+    echo "Starting Mailpit (SMTP 127.0.0.1:${MAILPIT_SMTP_PORT}, UI webroot /mailpit on :${MAILPIT_UI_PORT})"
     mailpit \
-        --smtp "0.0.0.0:${MAILPIT_SMTP_PORT}" \
-        --listen "0.0.0.0:${MAILPIT_UI_PORT}" \
+        --smtp "127.0.0.1:${MAILPIT_SMTP_PORT}" \
+        --listen "127.0.0.1:${MAILPIT_UI_PORT}" \
+        --webroot mailpit \
         --db-file /tmp/mailpit.db \
         >/tmp/mailpit.log 2>&1 &
 
-    # Point Laravel at local Mailpit unless a real remote SMTP host is configured
     case "${MAIL_HOST:-}" in
         ""|mailpit|127.0.0.1|localhost)
             export MAIL_MAILER=smtp
@@ -60,6 +58,35 @@ if [ "$MAILPIT_ENABLED" = "true" ]; then
             export MAIL_PASSWORD="${MAIL_PASSWORD:-null}"
             ;;
     esac
+
+    MAILPIT_UPSTREAM=$(cat <<EOF
+    upstream mailpit {
+        server 127.0.0.1:${MAILPIT_UI_PORT};
+    }
+EOF
+)
+    MAILPIT_LOCATION=$(cat <<'EOF'
+        location = /mailpit {
+            return 301 /mailpit/;
+        }
+
+        location /mailpit/ {
+            proxy_pass http://mailpit/mailpit/;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Host $host;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_read_timeout 60s;
+        }
+EOF
+)
+else
+    MAILPIT_UPSTREAM=""
+    MAILPIT_LOCATION=""
 fi
 
 echo "Clearing Laravel caches..."
@@ -76,5 +103,35 @@ if [ "${CACHE_CONFIG:-true}" = "true" ]; then
     php artisan view:cache || true
 fi
 
-echo "Starting Laravel on 0.0.0.0:${SERVER_PORT}"
-exec php artisan serve --host=0.0.0.0 --port="${SERVER_PORT}"
+echo "Starting Laravel on 127.0.0.1:${APP_PORT}"
+php artisan serve --host=127.0.0.1 --port="${APP_PORT}" >/tmp/laravel-serve.log 2>&1 &
+
+# Wait until Laravel accepts connections
+i=0
+while [ "$i" -lt 30 ]; do
+    if php -r "exit(@fsockopen('127.0.0.1', (int)getenv('APP_PORT'), \$e, \$s, 0.2) ? 0 : 1);"; then
+        break
+    fi
+    i=$((i + 1))
+    sleep 0.2
+done
+
+# Render nginx config
+# shellcheck disable=SC2016
+awk \
+    -v listen="$PORT" \
+    -v app="$APP_PORT" \
+    -v mp_up="$MAILPIT_UPSTREAM" \
+    -v mp_loc="$MAILPIT_LOCATION" \
+    '
+    {
+      gsub(/__LISTEN_PORT__/, listen)
+      gsub(/__APP_PORT__/, app)
+      if ($0 ~ /__MAILPIT_UPSTREAM__/) { print mp_up; next }
+      if ($0 ~ /__MAILPIT_LOCATION__/) { print mp_loc; next }
+      print
+    }
+    ' /var/www/html/docker/nginx/prod.conf.template > /tmp/nginx-prod.conf
+
+echo "Starting nginx on 0.0.0.0:${PORT} (Laravel :${APP_PORT}, Mailpit UI /mailpit)"
+exec nginx -c /tmp/nginx-prod.conf -g 'daemon off;'
