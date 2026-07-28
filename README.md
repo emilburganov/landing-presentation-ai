@@ -1,58 +1,402 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Landing Presentation AI
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Backend API формы обратной связи: анализ комментария через AI (Groq), сохранение обращения, email-уведомления, метрики и health-check.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 1. Как запустить проект
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### Требования
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- Docker + Docker Compose
+- PHP 8.3+ и Composer (если запуск без Docker)
+- Ключ [Groq API](https://console.groq.com/)
 
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+### Быстрый старт (Docker)
 
 ```bash
-composer require laravel/boost --dev
+cp .env.example .env
+# Укажите GROQ_API_KEY и CONTACT_OWNER_EMAIL в .env
 
-php artisan boost:install
+docker compose up -d --build
+docker compose exec app composer install
+docker compose exec app php artisan key:generate
+docker compose exec app php artisan migrate
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Сервисы:
 
-## Contributing
+| Сервис | URL |
+|---|---|
+| API (nginx) | http://localhost |
+| Swagger UI | http://localhost/docs |
+| OpenAPI spec | http://localhost/docs/openapi.yaml |
+| Mailpit (письма) | http://localhost:8025 |
+| Redis | `localhost:6379` |
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Проверка:
 
-## Code of Conduct
+```bash
+curl http://localhost/api/health
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### Локальный запуск без Docker
 
-## Security Vulnerabilities
+```bash
+cp .env.example .env
+composer install
+php artisan key:generate
+touch database/database.sqlite
+php artisan migrate
+php artisan serve
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Для почты и Redis в этом случае нужны свои SMTP/Redis или Docker только для `mailpit` и `redis`.  
+При запуске API вне Docker-сети задайте `MAIL_HOST=127.0.0.1` и `REDIS_HOST=127.0.0.1`.
 
-## License
+### Основные переменные окружения
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```env
+GROQ_API_KEY=...
+AI_PROVIDER=groq
+AI_MODEL=llama3-8b-8192
+
+CONTACT_OWNER_EMAIL=owner@localhost
+CONTACT_RATE_LIMIT_MAX=5
+CONTACT_RATE_LIMIT_WINDOW=600
+
+MAIL_MAILER=smtp
+MAIL_HOST=mailpit
+MAIL_PORT=1025
+
+CACHE_STORE=redis
+REDIS_HOST=redis
+DB_CONNECTION=sqlite
+```
+
+---
+
+## 2. Стек технологий и библиотек
+
+- **PHP 8.3+ / Laravel 13** 
+- **Docker Compose** — `app` (PHP-FPM), `nginx`, `redis`, `mailpit`
+- **SQLite** — легко заменить на MySQL/PostgreSQL
+- **Redis**
+- **Groq API** — LLM-анализ комментариев
+- **justinrainbow/json-schema** — валидация JSON-ответа AI
+- **propaganistas/laravel-phone** — валидация номера телефона
+- **Guzzle** — HTTP-клиент к Groq
+- **Mailpit** — локальный SMTP + UI писем
+- **OpenAPI 3 / Swagger UI** — документация API
+
+---
+
+## 3. Архитектура
+
+Модули разделены, связь Contact → AI только через anti-corruption layer.
+
+```text
+HTTP (Controller + FormRequest)
+        │
+        ▼
+Contact module
+  ├─ ContactService          — оркестрация сценария
+  ├─ RateLimiter             — лимит по email
+  ├─ CommentAnalyzer (port)  — анализ комментария
+  │     └─ AiCommentAnalyzer — единственная точка вызова AI
+  ├─ ContactRepository       — сохранение в БД
+  └─ ContactNotifier         — письма владельцу и пользователю
+        │
+        ▼
+AI module
+  ├─ CommentAnalyzerInterface (port)
+  ├─ GroqCommentAnalyzer (adapter)
+  ├─ GroqApiClient / Prompt / Parser
+  └─ JsonSchemaResponseValidator
+```
+
+### Паттерны
+
+| Паттерн | Где |
+|---|---|
+| Port / Strategy | `CommentAnalyzerInterface`, `ContactHandlerInterface`, `RateLimiterInterface` |
+| Adapter | `GroqCommentAnalyzer`, `AiCommentAnalyzer`, `LaravelContactNotifier` |
+| Repository | `ContactRepositoryInterface` + `EloquentContactRepository` |
+| Factory | выбор AI-провайдера в `AIServiceProvider` |
+| DTO | `ContactDTO`, `CommentAnalysis`, `ContactMetricsDTO` |
+| Dependency Injection | `AIServiceProvider`, `ContactServiceProvider` |
+
+Pipeline запроса `POST /api/contact`:
+
+1. Валидация запроса  
+2. Rate limit  
+3. AI-анализ комментария  
+4. Сохранение в `contacts`  
+5. Письмо владельцу + копия пользователю  
+6. Ответ с `sentiment` / `type` / `ai_used`
+
+---
+
+## 4. Реализация API
+
+Базовый префикс: `/api`
+
+| Метод | Путь | Описание |
+|---|---|---|
+| `POST` | `/api/contact` | Принять обращение |
+| `GET` | `/api/metrics` | Статистика обращений |
+| `GET` | `/api/health` | Статус сервиса и зависимостей |
+
+Документация: **http://localhost/docs**
+
+### Примеры запросов (curl)
+
+Базовый URL: `http://localhost` (nginx).  
+`jq` опционален — можно убрать `| jq`, если его нет.
+
+#### Health
+
+```bash
+curl -s -X GET http://localhost/api/health \
+  -H 'Accept: application/json' | jq
+```
+
+Пример ответа:
+
+```json
+{
+  "status": "ok",
+  "service": "Laravel",
+  "timestamp": "2026-07-28T16:00:00+00:00",
+  "checks": {
+    "app": { "status": "ok", "message": "Application is running" },
+    "database": { "status": "ok", "message": "Database connection successful" },
+    "cache": { "status": "ok", "message": "Cache is available (redis)" },
+    "mail": { "status": "ok", "message": "SMTP mailpit:1025 reachable" },
+    "ai": { "status": "ok", "message": "Groq provider configured" }
+  }
+}
+```
+
+#### Metrics
+
+```bash
+curl -s -X GET http://localhost/api/metrics \
+  -H 'Accept: application/json' | jq
+```
+
+Пример ответа:
+
+```json
+{
+  "total": 42,
+  "by_sentiment": { "positive": 20, "neutral": 15, "negative": 7 },
+  "by_type": { "question": 18, "feedback": 12, "complaint": 7, "general": 5 },
+  "ai_used": 40,
+  "last_24_hours": 3,
+  "last_7_days": 14
+}
+```
+
+#### Contact — успешное обращение
+
+```bash
+curl -s -X POST http://localhost/api/contact \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json' \
+  -d '{
+    "name": "Ivan",
+    "phone": "+79991234567",
+    "email": "ivan@mail.com",
+    "comment": "Хочу узнать подробности о вашем продукте."
+  }' | jq
+```
+
+Пример ответа `201`:
+
+```json
+{
+  "message": "Contact request accepted.",
+  "sentiment": "positive",
+  "type": "question",
+  "ai_used": true
+}
+```
+
+#### Contact — ошибка валидации (`422`)
+
+```bash
+curl -s -X POST http://localhost/api/contact \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json' \
+  -d '{
+    "name": "I",
+    "phone": "123",
+    "email": "not-an-email",
+    "comment": "short"
+  }' | jq
+```
+
+#### Contact — с кодом HTTP в выводе
+
+```bash
+curl -s -w '\nHTTP %{http_code}\n' -X POST http://localhost/api/contact \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json' \
+  -d '{
+    "name": "Ivan",
+    "phone": "+79991234567",
+    "email": "ivan@mail.com",
+    "comment": "Хочу узнать подробности о вашем продукте."
+  }'
+```
+
+#### Contact — rate limit (`429`)
+
+После нескольких запросов с одним и тем же email (лимит: `CONTACT_RATE_LIMIT_MAX`):
+
+```bash
+for i in 1 2 3 4 5 6; do
+  curl -s -w " #$i HTTP %{http_code}\n" -X POST http://localhost/api/contact \
+    -H 'Content-Type: application/json' \
+    -H 'Accept: application/json' \
+    -d '{
+      "name": "Ivan",
+      "phone": "+79991234567",
+      "email": "ratelimit@mail.com",
+      "comment": "Повторный запрос для проверки лимита обращений."
+    }'
+done
+```
+
+Пример ответа `429`:
+
+```json
+{
+  "message": "Too many requests. Try again later.",
+  "retry_after": 600
+}
+```
+
+> Письма после успешного `POST /api/contact` смотрите в Mailpit: http://localhost:8025
+
+### `POST /api/contact`
+
+Тело:
+
+```json
+{
+  "name": "Ivan",
+  "phone": "+79991234567",
+  "email": "ivan@mail.com",
+  "comment": "Хочу узнать подробности о вашем продукте."
+}
+```
+
+Успех `201`:
+
+```json
+{
+  "message": "Contact request accepted.",
+  "sentiment": "positive",
+  "type": "question",
+  "ai_used": true
+}
+```
+
+Основные ошибки:
+
+| Код | Когда |
+|---|---|
+| `422` | Ошибка валидации |
+| `429` | Rate limit |
+| `401/4xx` | Ошибки AI-клиента / ключа |
+| `502` | Невалидный ответ AI или сбой почты |
+| `503/504` | Сбой/таймаут AI-провайдера |
+
+### `GET /api/metrics`
+
+```json
+{
+  "total": 42,
+  "by_sentiment": { "positive": 20, "neutral": 15, "negative": 7 },
+  "by_type": { "question": 18, "feedback": 12, "complaint": 7, "general": 5 },
+  "ai_used": 40,
+  "last_24_hours": 3,
+  "last_7_days": 14
+}
+```
+
+### `GET /api/health`
+
+Проверки: `app`, `database`, `cache`, `mail`, `ai`.  
+Статус: `ok` | `degraded` | `down` (`503` при `down`).
+
+---
+
+## 5. AI-интеграция
+
+Провайдер по умолчанию — **Groq** (`AI_PROVIDER=groq`).
+
+1. `GroqApiClient` отправляет system + user prompt  
+2. Модель возвращает строго JSON  
+3. `CommentAnalysisParser` извлекает content и декодирует JSON  
+4. `JsonSchemaResponseValidator` проверяет ответ по схеме  
+   [`app/Services/AI/Schemas/comment-analysis.json`](app/Services/AI/Schemas/comment-analysis.json)  
+5. Результат мапится в DTO / enum (`Sentiment`, `CommentType`)
+
+Ожидаемый формат ответа модели:
+
+```json
+{
+  "sentiment": "positive | neutral | negative | unknown",
+  "type": "question | feedback | complaint | general",
+  "auto_reply": "string | null"
+}
+```
+
+Ошибки HTTP Groq преобразуются в доменные исключения (`AIUnauthorizedException`, `AIServerException`, `AIConnectionException`, `AIInvalidResponseException` и т.д.) и на границе Contact-модуля — в `CommentAnalysisFailedException`.
+
+---
+
+## 6. Что сделано с помощью AI
+
+Часть разработки велась с ассистентом (Cursor):
+
+- проектирование модулей Contact / AI и разделение ответственности;
+- рефакторинг к Port/Adapter/Repository и anti-corruption layer;
+- валидация ответа LLM через JSON Schema;
+- email-уведомления + Mailpit в Docker;
+- `/metrics`, `/health`, OpenAPI/Swagger;
+- логирование и обработка ошибок по сценариям contact/mail/AI.
+
+Сам продукт тоже использует AI: классификация тональности и типа обращения, опциональный `auto_reply` в письме пользователю.
+
+---
+
+## 7. Хранение данных
+
+### Таблица `contacts`
+
+| Поле | Описание |
+|---|---|
+| `name`, `phone`, `email`, `comment` | Данные формы |
+| `sentiment`, `type` | Результат AI-анализа |
+| `auto_reply` | Автоответ (nullable) |
+| `ai_used` | Использовался ли AI |
+| `created_at`, `updated_at` | Временные метки |
+
+Доступ через Repository:
+
+- `ContactRepositoryInterface`
+- `EloquentContactRepository`
+
+Метрики считаются агрегациями по таблице в этом классе (`ContactMetricsService`).
+
+По умолчанию используется **SQLite** (`database/database.sqlite`). Для production достаточно сменить `DB_*` в `.env` и выполнить миграции.
+
+Дополнительно:
+
+- **Redis** — rate limiting (`contact:{email}`) и cache;
+- **Mailpit** — локальное хранение/просмотр писем (не продакшен-доставка);
+- **Логи:** `storage/logs/contact-*.log`, `storage/logs/ai-*.log`, `storage/logs/laravel.log`.
