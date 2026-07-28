@@ -11,6 +11,11 @@ services:
             - "8000:8000"
         depends_on:
             - redis
+            - mailpit
+        environment:
+            MAIL_MAILER: smtp
+            MAIL_HOST: mailpit
+            MAIL_PORT: 1025
 
     nginx:
         image: nginx:latest
@@ -29,3 +34,11 @@ services:
         restart: unless-stopped
         ports:
             - "6379:6379"
+
+    mailpit:
+        image: axllent/mailpit:latest
+        container_name: mailpit
+        restart: unless-stopped
+        ports:
+            - "1025:1025"
+            - "8025:8025"
