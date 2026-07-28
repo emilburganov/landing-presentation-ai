@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Services\AI;
+namespace App\Services\AI\Contracts;
 
 use App\Services\AI\DTO\CommentAnalysisResultDTO;
 use App\Services\AI\Exceptions\AIException;
 
-interface AIClientInterface
+interface CommentAnalyzerInterface
 {
     /**
      * @throws AIException

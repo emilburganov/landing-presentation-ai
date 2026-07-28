@@ -2,7 +2,7 @@
 
 namespace App\Services\Contact;
 
-use App\Services\AI\AIClientInterface;
+use App\Services\AI\Contracts\CommentAnalyzerInterface;
 use App\Services\AI\Exceptions\AIException;
 use App\Services\Contact\DTO\ContactDTO;
 use App\Services\Contact\DTO\ContactResultDTO;
@@ -11,8 +11,8 @@ use App\Services\Contact\Exceptions\RateLimitExceededException;
 readonly class ContactService
 {
     public function __construct(
-        private RateLimiter       $rateLimiter,
-        private AIClientInterface $aiClient,
+        private RateLimiter $rateLimiter,
+        private CommentAnalyzerInterface $commentAnalyzer,
     )
     {
     }
@@ -24,7 +24,7 @@ readonly class ContactService
     public function handleContact(ContactDTO $contactDTO): ContactResultDTO
     {
         $this->rateLimiter->assertAllowed($contactDTO->email);
-        $analysis = $this->aiClient->analyzeComment($contactDTO->comment);
+        $analysis = $this->commentAnalyzer->analyzeComment($contactDTO->comment);
 
         return new ContactResultDTO(
             success: true,
