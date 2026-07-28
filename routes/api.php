@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\API\ContactController;
+use App\Http\Controllers\API\HealthController;
 use App\Http\Controllers\API\MetricsController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -11,3 +12,4 @@ Route::get('/user', function (Request $request) {
 
 Route::post('/contact', [ContactController::class, 'store']);
 Route::get('/metrics', [MetricsController::class, 'index']);
+Route::get('/health', [HealthController::class, 'index']);

@@ -191,6 +191,49 @@ paths:
                 ai_used: 40
                 last_24_hours: 3
                 last_7_days: 14
+  /api/health:
+    get:
+      tags:
+        - Health
+      summary: Статус сервиса
+      description: |
+        Проверяет доступность ключевых зависимостей:
+        app, database, cache, mail, ai.
+        Возвращает `200` при `ok`/`degraded` и `503` при `down`.
+      operationId: getHealth
+      responses:
+        '200':
+          description: Сервис работает (ok или degraded)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: ok
+                service: Laravel
+                timestamp: '2026-07-28T16:00:00+00:00'
+                checks:
+                  app:
+                    status: ok
+                    message: Application is running
+                  database:
+                    status: ok
+                    message: Database connection successful
+                  cache:
+                    status: ok
+                    message: Cache is available (redis)
+                  mail:
+                    status: ok
+                    message: SMTP mailpit:1025 reachable
+                  ai:
+                    status: ok
+                    message: Groq provider configured
+        '503':
+          description: Критическая зависимость недоступна (например database)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
 components:
   schemas:
     ContactRequest:
@@ -341,8 +384,49 @@ components:
         last_7_days:
           type: integer
           example: 14
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - service
+        - timestamp
+        - checks
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+            - degraded
+            - down
+          example: ok
+        service:
+          type: string
+          example: Laravel
+        timestamp:
+          type: string
+          format: date-time
+        checks:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/HealthCheck'
+    HealthCheck:
+      type: object
+      required:
+        - status
+        - message
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+            - degraded
+            - down
+        message:
+          type: string
 tags:
   - name: Contact
     description: Форма обратной связи
   - name: Metrics
     description: Статистика обращений
+  - name: Health
+    description: Состояние сервиса
