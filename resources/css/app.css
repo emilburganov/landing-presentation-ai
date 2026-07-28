@@ -2,8 +2,130 @@
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
+@source '../**/*.vue';
+@source '../**/*.js';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Montserrat', ui-sans-serif, system-ui, sans-serif;
+    --font-display: 'Montserrat', ui-sans-serif, system-ui, sans-serif;
+    --color-ink: #071a14;
+    --color-forest: #0f3d2e;
+    --color-moss: #1f6b4f;
+    --color-leaf: #b8f06e;
+    --color-mist: #e8f5ee;
+    --color-fog: #9db7ab;
+}
+
+html,
+body,
+#app {
+    min-height: 100%;
+}
+
+body {
+    margin: 0;
+    font-family: var(--font-sans), sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    color: var(--color-mist);
+    background: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+.font-display {
+    font-family: var(--font-display), sans-serif;
+}
+
+.brand-title {
+    font-family: var(--font-display), sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 0.95;
+}
+
+.hero-title {
+    font-family: var(--font-display), sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+}
+
+.hero-lead {
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    line-height: 1.7;
+}
+
+.field-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.field-control {
+    font-family: var(--font-sans), sans-serif;
+    font-size: 1rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+}
+
+.btn-label {
+    font-family: var(--font-sans), sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+@keyframes rise {
+    from {
+        opacity: 0;
+        transform: translateY(18px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes drift {
+    0%,
+    100% {
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+    50% {
+        transform: translate3d(2%, -3%, 0) scale(1.05);
+    }
+}
+
+@keyframes pulse-soft {
+    0%,
+    100% {
+        opacity: 0.45;
+    }
+    50% {
+        opacity: 0.8;
+    }
+}
+
+.animate-rise {
+    animation: rise 0.8s ease-out both;
+}
+
+.animate-rise-delay {
+    animation: rise 0.9s ease-out 0.12s both;
+}
+
+.animate-rise-delay-2 {
+    animation: rise 0.95s ease-out 0.24s both;
+}
+
+.bg-orb {
+    animation: drift 14s ease-in-out infinite;
+}
+
+.bg-orb-soft {
+    animation: pulse-soft 6s ease-in-out infinite;
 }

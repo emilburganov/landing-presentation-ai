@@ -1,6 +1,6 @@
 # Landing Presentation AI
 
-Backend API формы обратной связи: анализ комментария через AI (Groq), сохранение обращения, email-уведомления, метрики и health-check.
+Backend API и Vue-фронтенд формы обратной связи: анализ комментария через AI (Groq), сохранение обращения, email-уведомления, метрики и health-check.
 
 ---
 
@@ -22,12 +22,14 @@ docker compose up -d --build
 docker compose exec app composer install
 docker compose exec app php artisan key:generate
 docker compose exec app php artisan migrate
+npm install && npm run build
 ```
 
 Сервисы:
 
 | Сервис | URL |
 |---|---|
+| Фронтенд (форма) | http://localhost |
 | API (nginx) | http://localhost |
 | Swagger UI | http://localhost/docs |
 | OpenAPI spec | http://localhost/docs/openapi.yaml |
@@ -48,6 +50,7 @@ composer install
 php artisan key:generate
 touch database/database.sqlite
 php artisan migrate
+npm install && npm run build
 php artisan serve
 ```
 
@@ -78,7 +81,8 @@ DB_CONNECTION=sqlite
 
 ## 2. Стек технологий и библиотек
 
-- **PHP 8.3+ / Laravel 13** 
+- **Vue 3 + Vite + Tailwind CSS 4** — фронтенд формы, сборка в Blade (`@vite`)
+- **PHP 8.3+ / Laravel 13**
 - **Docker Compose** — `app` (PHP-FPM), `nginx`, `redis`, `mailpit`
 - **SQLite** — легко заменить на MySQL/PostgreSQL
 - **Redis**
