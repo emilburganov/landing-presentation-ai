@@ -1,0 +1,278 @@
+openapi: 3.0.3
+info:
+  title: Landing Presentation AI API
+  description: API формы обратной связи с AI-анализом комментария и email-уведомлениями.
+  version: 1.0.0
+servers:
+  - url: /
+    description: Current host
+paths:
+  /api/contact:
+    post:
+      tags:
+        - Contact
+      summary: Отправить обращение
+      description: |
+        Принимает обращение пользователя, анализирует комментарий через AI,
+        отправляет письмо владельцу сайта и копию пользователю.
+      operationId: storeContact
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactRequest'
+            examples:
+              default:
+                summary: Пример обращения
+                value:
+                  name: Ivan
+                  phone: '+79991234567'
+                  email: ivan@example.com
+                  comment: Хочу узнать подробности о вашем продукте.
+      responses:
+        '201':
+          description: Обращение принято
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactSuccessResponse'
+              example:
+                message: Contact request accepted.
+                sentiment: positive
+                type: question
+                ai_used: true
+        '400':
+          description: |
+            Ошибка клиента AI-провайдера (`AI client error.`).
+            HTTP-статус проксируется из ответа провайдера (например 400/403/404/413).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceErrorResponse'
+              example:
+                message: AI client error.
+                raw:
+                  message: 'Client error: POST https://api.groq.com/... resulted in a 400 Bad Request response'
+        '401':
+          description: Ошибка авторизации AI-провайдера (неверный API key)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceErrorResponse'
+              example:
+                message: 'AI authorization failed: incorrect API key.'
+                raw:
+                  message: 'Client error: POST https://api.groq.com/... resulted in a 401 Unauthorized response'
+        '403':
+          description: Доступ к AI-провайдеру запрещён (`AI client error.`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceErrorResponse'
+              example:
+                message: AI client error.
+                raw:
+                  message: 'Client error: POST https://api.groq.com/... resulted in a 403 Forbidden response'
+        '404':
+          description: Ресурс/модель AI-провайдера не найдены (`AI client error.`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceErrorResponse'
+              example:
+                message: AI client error.
+                raw:
+                  message: 'Client error: POST https://api.groq.com/... resulted in a 404 Not Found response'
+        '422':
+          description: Ошибка валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '429':
+          description: |
+            Превышен rate limit приложения или rate limit AI-провайдера.
+            Для app-лимита — retry_after. Для AI — message: AI client error.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/RateLimitErrorResponse'
+                  - $ref: '#/components/schemas/ServiceErrorResponse'
+              examples:
+                appRateLimit:
+                  summary: Лимит приложения
+                  value:
+                    message: Too many requests. Try again later.
+                    retry_after: 600
+                aiRateLimit:
+                  summary: Лимит AI-провайдера
+                  value:
+                    message: AI client error.
+                    raw:
+                      message: 'Client error: POST https://api.groq.com/... resulted in a 429 Too Many Requests response'
+        '500':
+          description: Неожиданная ошибка AI (Unexpected AI error.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceErrorResponse'
+              example:
+                message: Unexpected AI error.
+                raw:
+                  message: Unexpected failure details
+        '502':
+          description: Некорректный ответ AI или ошибка отправки email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceErrorResponse'
+              examples:
+                invalidAiResponse:
+                  summary: Невалидный JSON от AI
+                  value:
+                    message: AI returned invalid or non-JSON response.
+                    raw:
+                      content: {}
+                      errors: []
+                mailFailed:
+                  summary: Ошибка отправки email
+                  value:
+                    message: Failed to send contact notification emails.
+                    raw:
+                      mailer: smtp
+                      failures: {}
+        '503':
+          description: Ошибка сервера AI-провайдера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceErrorResponse'
+              example:
+                message: AI provider server error.
+                raw:
+                  message: 'Server error: POST https://api.groq.com/... resulted in a 503 Service Unavailable response'
+        '504':
+          description: Таймаут/сетевая ошибка AI
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceErrorResponse'
+              example:
+                message: AI connection failed (timeout or network issue).
+                raw:
+                  message: 'cURL error 28: Connection timed out'
+components:
+  schemas:
+    ContactRequest:
+      type: object
+      required:
+        - name
+        - phone
+        - email
+        - comment
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: Ivan
+        phone:
+          type: string
+          description: Номер телефона в международном формате
+          example: '+79991234567'
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          example: ivan@example.com
+        comment:
+          type: string
+          minLength: 10
+          maxLength: 2000
+          example: Хочу узнать подробности о вашем продукте.
+    ContactSuccessResponse:
+      type: object
+      required:
+        - message
+        - sentiment
+        - type
+        - ai_used
+      properties:
+        message:
+          type: string
+          example: Contact request accepted.
+        sentiment:
+          type: string
+          enum:
+            - positive
+            - neutral
+            - negative
+            - unknown
+          example: positive
+        type:
+          type: string
+          enum:
+            - question
+            - feedback
+            - complaint
+            - general
+          example: question
+        ai_used:
+          type: boolean
+          example: true
+    ValidationErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: The email field must be a valid email address.
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            email:
+              - The email field must be a valid email address.
+    RateLimitErrorResponse:
+      type: object
+      required:
+        - message
+        - retry_after
+      properties:
+        message:
+          type: string
+          example: Too many requests. Try again later.
+        retry_after:
+          type: integer
+          description: Через сколько секунд можно повторить запрос
+          example: 600
+    ServiceErrorResponse:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: |
+            Возможные значения:
+            - AI client error. — 4xx от AI-провайдера (кроме 401)
+            - AI authorization failed: incorrect API key. — 401
+            - AI returned invalid or non-JSON response. — 502
+            - AI provider server error. — 503
+            - AI connection failed (timeout or network issue). — 504
+            - Unexpected AI error. — 500
+            - Failed to send contact notification emails. — 502
+          example: AI client error.
+        raw:
+          type: object
+          nullable: true
+          additionalProperties: true
+          example:
+            message: 'Client error: POST https://api.groq.com/... resulted in a 400 Bad Request response'
+tags:
+  - name: Contact
+    description: Форма обратной связи
