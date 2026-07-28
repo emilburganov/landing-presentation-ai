@@ -13,8 +13,9 @@ readonly class CommentAnalysisParser
 {
     public function __construct(
         private ResponseValidatorInterface $validator,
-        private LoggerInterface $logger,
-    ) {
+        private LoggerInterface            $logger,
+    )
+    {
     }
 
     /**

@@ -2,6 +2,8 @@
 
 namespace App\Services\Contact\DTO;
 
+use App\Services\AI\DTO\CommentAnalysisResultDTO;
+
 readonly class ContactResultDTO
 {
     public function __construct(
@@ -10,9 +12,20 @@ readonly class ContactResultDTO
         public ?string $sentiment = null,
         public ?string $type = null,
         public ?bool   $aiUsed = null,
-        public ?string  $error = null,
+        public ?string $error = null,
     )
     {
+    }
+
+    public static function accepted(CommentAnalysisResultDTO $analysis): self
+    {
+        return new self(
+            success: true,
+            message: 'Contact request accepted.',
+            sentiment: $analysis->sentiment,
+            type: $analysis->type,
+            aiUsed: $analysis->usedAi,
+        );
     }
 
     public function toArray(): array
@@ -27,4 +40,3 @@ readonly class ContactResultDTO
         ];
     }
 }
-

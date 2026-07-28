@@ -13,11 +13,12 @@ use Throwable;
 readonly class GroqCommentAnalyzer implements CommentAnalyzerInterface
 {
     public function __construct(
-        private GroqApiClient $api,
+        private GroqApiClient         $api,
         private CommentAnalysisPrompt $prompt,
         private CommentAnalysisParser $parser,
         private GuzzleExceptionMapper $exceptionMapper,
-    ) {
+    )
+    {
     }
 
     /**

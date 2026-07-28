@@ -12,8 +12,9 @@ readonly class GroqApiClient
         private string $url,
         private string $apiKey,
         private string $model,
-        private int $timeout = 10,
-    ) {
+        private int    $timeout = 10,
+    )
+    {
     }
 
     /**

@@ -5,7 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\API\ContactRequest;
 use App\Services\AI\Exceptions\AIException;
-use App\Services\Contact\ContactService;
+use App\Services\Contact\Contracts\ContactHandlerInterface;
 use App\Services\Contact\DTO\ContactDTO;
 use App\Services\Contact\Exceptions\RateLimitExceededException;
 use Illuminate\Http\JsonResponse;
@@ -13,7 +13,7 @@ use Illuminate\Http\JsonResponse;
 class ContactController extends Controller
 {
     public function __construct(
-        private readonly ContactService $service,
+        private readonly ContactHandlerInterface $service,
     )
     {
     }
