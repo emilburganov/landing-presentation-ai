@@ -3,9 +3,9 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-# Do NOT set a custom buildCommand / startCommand that runs `docker` —
-# Railway has no Docker CLI in the build sandbox.
-healthcheckPath = "/api/health"
-healthcheckTimeout = 30
+# Liveness only — Laravel built-in /up (always 200 when app boots).
+# /api/health can return 503 when DB is down and would fail Railway deploys.
+healthcheckPath = "/up"
+healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 5

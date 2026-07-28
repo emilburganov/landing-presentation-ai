@@ -155,7 +155,10 @@ MAIL_FROM_ADDRESS=noreply@yourdomain.com
 
 Для PostgreSQL на Railway замените `DB_*` на значения из плагина Postgres (`pdo_pgsql` уже в образе). При отдельном Redis — `CACHE_STORE=redis` и `REDIS_HOST`.
 
-Healthcheck: `GET /api/health`.
+Healthcheck: `GET /up` (liveness для Railway). Детальный статус зависимостей — `GET /api/health`.
+
+В Dashboard: Build Command и Start Command должны быть **пустыми** (entrypoint сам слушает `$PORT`).
+Если healthcheck всё ещё падает — проверьте Deploy Logs: часто нет `APP_KEY` или БД недоступна на старте миграций.
 
 ---
 
