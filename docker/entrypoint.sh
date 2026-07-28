@@ -36,9 +36,8 @@ if [ "$DB_CONNECTION" = "sqlite" ]; then
     export DB_DATABASE="$DB_PATH"
 fi
 
-php artisan config:clear || true
-php artisan route:clear || true
-php artisan view:clear || true
+echo "Clearing Laravel caches..."
+php artisan optimize:clear || true
 php artisan package:discover --ansi || true
 
 if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then

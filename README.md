@@ -62,7 +62,7 @@ php artisan serve
 ```env
 GROQ_API_KEY=...
 AI_PROVIDER=groq
-AI_MODEL=llama3-8b-8192
+AI_MODEL=openai/gpt-oss-120b
 
 CONTACT_OWNER_EMAIL=owner@localhost
 CONTACT_RATE_LIMIT_MAX=5

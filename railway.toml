@@ -5,6 +5,7 @@ dockerfilePath = "Dockerfile"
 [deploy]
 # Liveness only — Laravel built-in /up (always 200 when app boots).
 # /api/health can return 503 when DB is down and would fail Railway deploys.
+preDeployCommand = ["php artisan config:clear"]
 healthcheckPath = "/up"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
