@@ -4,9 +4,9 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\API\ContactRequest;
-use App\Services\AI\Exceptions\AIException;
 use App\Services\Contact\Contracts\ContactHandlerInterface;
 use App\Services\Contact\DTO\ContactDTO;
+use App\Services\Contact\Exceptions\CommentAnalysisFailedException;
 use App\Services\Contact\Exceptions\RateLimitExceededException;
 use Illuminate\Http\JsonResponse;
 
@@ -29,7 +29,7 @@ class ContactController extends Controller
                 'message' => $e->getMessage(),
                 'retry_after' => $e->retryAfter,
             ], 429);
-        } catch (AIException $e) {
+        } catch (CommentAnalysisFailedException $e) {
             return response()->json([
                 'message' => $e->getMessage(),
                 'raw' => $e->raw,

@@ -2,7 +2,7 @@
 
 namespace App\Services\Contact\DTO;
 
-use App\Services\AI\DTO\CommentAnalysisResultDTO;
+use App\Services\Contact\Analysis\CommentAnalysis;
 
 readonly class ContactResultDTO
 {
@@ -17,7 +17,7 @@ readonly class ContactResultDTO
     {
     }
 
-    public static function accepted(CommentAnalysisResultDTO $analysis): self
+    public static function accepted(CommentAnalysis $analysis): self
     {
         return new self(
             success: true,
