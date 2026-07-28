@@ -14,12 +14,13 @@ use Throwable;
 readonly class GroqCommentAnalyzer implements CommentAnalyzerInterface
 {
     public function __construct(
-        private GroqApiClient $api,
+        private GroqApiClient         $api,
         private CommentAnalysisPrompt $prompt,
         private CommentAnalysisParser $parser,
         private GuzzleExceptionMapper $exceptionMapper,
-        private LoggerInterface $logger,
-    ) {
+        private LoggerInterface       $logger,
+    )
+    {
     }
 
     /**
@@ -27,9 +28,9 @@ readonly class GroqCommentAnalyzer implements CommentAnalyzerInterface
      */
     public function analyzeComment(string $comment): CommentAnalysisResultDTO
     {
-        $this->logger->info('ai.analyze.start', [
-            'comment_length' => mb_strlen($comment),
+        $this->logger->info('ai.analyze.started', [
             'provider' => 'groq',
+            'comment_length' => mb_strlen($comment),
         ]);
 
         try {
@@ -40,7 +41,8 @@ readonly class GroqCommentAnalyzer implements CommentAnalyzerInterface
 
             $result = $this->parser->parse($response);
 
-            $this->logger->info('ai.analyze.success', [
+            $this->logger->info('ai.analyze.succeeded', [
+                'provider' => 'groq',
                 'sentiment' => $result->sentiment,
                 'type' => $result->type,
             ]);
@@ -48,6 +50,8 @@ readonly class GroqCommentAnalyzer implements CommentAnalyzerInterface
             return $result;
         } catch (AIException $e) {
             $this->logger->error('ai.analyze.failed', [
+                'provider' => 'groq',
+                'exception' => $e::class,
                 'message' => $e->getMessage(),
                 'status_code' => $e->statusCode,
                 'raw' => $e->raw,
@@ -58,6 +62,8 @@ readonly class GroqCommentAnalyzer implements CommentAnalyzerInterface
             $mapped = $this->exceptionMapper->map($e);
 
             $this->logger->error('ai.analyze.failed', [
+                'provider' => 'groq',
+                'exception' => $mapped::class,
                 'message' => $mapped->getMessage(),
                 'status_code' => $mapped->statusCode,
                 'raw' => $mapped->raw,

@@ -26,7 +26,12 @@ class AIServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(CommentAnalysisPrompt::class);
-        $this->app->singleton(GuzzleExceptionMapper::class);
+
+        $this->app->singleton(GuzzleExceptionMapper::class, function () {
+            return new GuzzleExceptionMapper(
+                logger: Log::channel('ai'),
+            );
+        });
 
         $this->app->singleton(CommentAnalysisParser::class, function ($app) {
             return new CommentAnalysisParser(
@@ -50,8 +55,8 @@ class AIServiceProvider extends ServiceProvider
         $api = new GroqApiClient(
             http: new Client(),
             url: config('ai.groq.url'),
-            apiKey: (string) config('ai.groq.key'),
-            model: (string) config('ai.groq.model'),
+            apiKey: (string)config('ai.groq.key'),
+            model: (string)config('ai.groq.model'),
         );
 
         return new GroqCommentAnalyzer(
@@ -63,4 +68,3 @@ class AIServiceProvider extends ServiceProvider
         );
     }
 }
-
