@@ -136,7 +136,7 @@ docker run --rm -p 8080:8080 \
 APP_KEY=base64:...
 APP_ENV=production
 APP_DEBUG=false
-APP_URL=https://your-app.up.railway.app
+APP_URL=https://landing-presentation-ai-production.up.railway.app
 LOG_CHANNEL=stderr
 DB_CONNECTION=sqlite
 DB_DATABASE=/var/www/html/database/database.sqlite
