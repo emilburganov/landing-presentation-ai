@@ -134,15 +134,15 @@ paths:
                   value:
                     message: AI returned invalid or non-JSON response.
                     raw:
-                      content: {}
-                      errors: []
+                      content: { }
+                      errors: [ ]
                 mailFailed:
                   summary: Ошибка отправки email
                   value:
                     message: Failed to send contact notification emails.
                     raw:
                       mailer: smtp
-                      failures: {}
+                      failures: { }
         '503':
           description: Ошибка сервера AI-провайдера
           content:
@@ -163,6 +163,34 @@ paths:
                 message: AI connection failed (timeout or network issue).
                 raw:
                   message: 'cURL error 28: Connection timed out'
+  /api/metrics:
+    get:
+      tags:
+        - Metrics
+      summary: Статистика обращений
+      description: Возвращает агрегированную статистику по сохранённым обращениям.
+      operationId: getContactMetrics
+      responses:
+        '200':
+          description: Статистика обращений
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactMetricsResponse'
+              example:
+                total: 42
+                by_sentiment:
+                  positive: 20
+                  neutral: 15
+                  negative: 7
+                by_type:
+                  question: 18
+                  feedback: 12
+                  complaint: 7
+                  general: 5
+                ai_used: 40
+                last_24_hours: 3
+                last_7_days: 14
 components:
   schemas:
     ContactRequest:
@@ -273,6 +301,48 @@ components:
           additionalProperties: true
           example:
             message: 'Client error: POST https://api.groq.com/... resulted in a 400 Bad Request response'
+    ContactMetricsResponse:
+      type: object
+      required:
+        - total
+        - by_sentiment
+        - by_type
+        - ai_used
+        - last_24_hours
+        - last_7_days
+      properties:
+        total:
+          type: integer
+          example: 42
+        by_sentiment:
+          type: object
+          additionalProperties:
+            type: integer
+          example:
+            positive: 20
+            neutral: 15
+            negative: 7
+        by_type:
+          type: object
+          additionalProperties:
+            type: integer
+          example:
+            question: 18
+            feedback: 12
+            complaint: 7
+            general: 5
+        ai_used:
+          type: integer
+          description: Количество обращений, обработанных с использованием AI
+          example: 40
+        last_24_hours:
+          type: integer
+          example: 3
+        last_7_days:
+          type: integer
+          example: 14
 tags:
   - name: Contact
     description: Форма обратной связи
+  - name: Metrics
+    description: Статистика обращений

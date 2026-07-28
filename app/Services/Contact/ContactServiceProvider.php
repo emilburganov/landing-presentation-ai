@@ -10,6 +10,8 @@ use App\Services\Contact\Contracts\RateLimiterInterface;
 use App\Services\Contact\Mail\ContactNotifierInterface;
 use App\Services\Contact\Mail\LaravelContactNotifier;
 use App\Services\Contact\RateLimiting\ContactRateLimiter;
+use App\Services\Contact\Repositories\ContactRepositoryInterface;
+use App\Services\Contact\Repositories\EloquentContactRepository;
 use Illuminate\Cache\RateLimiter as CacheRateLimiter;
 use Illuminate\Contracts\Mail\Mailer;
 use Illuminate\Support\Facades\Log;
@@ -36,6 +38,9 @@ class ContactServiceProvider extends ServiceProvider
             );
         });
 
+        $this->app->singleton(ContactRepositoryInterface::class, EloquentContactRepository::class);
+        $this->app->singleton(ContactMetricsService::class);
+
         $this->app->singleton(ContactNotifierInterface::class, function ($app) {
             $ownerEmail = config('contact.owner_email');
 
@@ -55,6 +60,7 @@ class ContactServiceProvider extends ServiceProvider
             return new ContactService(
                 rateLimiter: $app->make(RateLimiterInterface::class),
                 commentAnalyzer: $app->make(CommentAnalyzer::class),
+                contacts: $app->make(ContactRepositoryInterface::class),
                 notifier: $app->make(ContactNotifierInterface::class),
                 logger: Log::channel('contact'),
             );

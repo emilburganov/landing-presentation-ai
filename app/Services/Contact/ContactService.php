@@ -12,16 +12,18 @@ use App\Services\Contact\Exceptions\CommentAnalysisFailedException;
 use App\Services\Contact\Exceptions\ContactNotificationFailedException;
 use App\Services\Contact\Exceptions\RateLimitExceededException;
 use App\Services\Contact\Mail\ContactNotifierInterface;
+use App\Services\Contact\Repositories\ContactRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
 readonly class ContactService implements ContactHandlerInterface
 {
     public function __construct(
-        private RateLimiterInterface     $rateLimiter,
-        private CommentAnalyzer          $commentAnalyzer,
-        private ContactNotifierInterface $notifier,
-        private LoggerInterface          $logger,
+        private RateLimiterInterface       $rateLimiter,
+        private CommentAnalyzer            $commentAnalyzer,
+        private ContactRepositoryInterface $contacts,
+        private ContactNotifierInterface   $notifier,
+        private LoggerInterface            $logger,
     )
     {
     }
@@ -43,11 +45,19 @@ readonly class ContactService implements ContactHandlerInterface
 
             $analysis = $this->commentAnalyzer->analyze($contactDTO->comment);
 
+            $contact = $this->contacts->create($contactDTO, $analysis);
+
+            $this->logger->info('contact.handle.persisted', [
+                'contact_id' => $contact->id,
+                'email' => $contactDTO->email,
+            ]);
+
             $this->sendNotifications($contactDTO, $analysis);
 
             $result = ContactResultDTO::accepted($analysis);
 
             $this->logger->info('contact.handle.succeeded', [
+                'contact_id' => $contact->id,
                 'email' => $contactDTO->email,
                 'sentiment' => $result->sentiment,
                 'type' => $result->type,
